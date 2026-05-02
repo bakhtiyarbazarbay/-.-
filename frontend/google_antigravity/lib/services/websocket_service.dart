@@ -1,11 +1,17 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class WebSocketService {
   WebSocketChannel? _channel;
 
   String get baseWsUrl {
+    final configuredUrl = dotenv.env['WS_URL'];
+    if (configuredUrl != null && configuredUrl.isNotEmpty) {
+      return configuredUrl;
+    }
+
     try {
       if (Platform.isAndroid) {
         return 'ws://10.0.2.2:8000/ws';

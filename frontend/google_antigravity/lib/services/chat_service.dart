@@ -1,10 +1,16 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io' show Platform;
 
 class ChatService {
   String get baseUrl {
+    final configuredUrl = dotenv.env['API_URL'];
+    if (configuredUrl != null && configuredUrl.isNotEmpty) {
+      return '$configuredUrl/chats';
+    }
+
     const String apiPath = '/api/v1/chats';
     try {
       if (Platform.isAndroid) {

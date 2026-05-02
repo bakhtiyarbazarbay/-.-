@@ -1,19 +1,25 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'dart:io' show Platform;
 
 class AuthService {
-  // Use 10.0.2.2 for Android emulator, 127.0.0.1 for iOS simulator and web
   String get baseUrl {
+    final configuredUrl = dotenv.env['API_URL'];
+    if (configuredUrl != null && configuredUrl.isNotEmpty) {
+      return '$configuredUrl/auth';
+    }
+
+    // Fallback if .env is missing
     const String apiPath = '/api/v1/auth';
     try {
       if (Platform.isAndroid) {
         return 'http://10.0.2.2:8000$apiPath';
       }
     } catch (e) {
-      // Platform.isAndroid throws an exception on Web
+      // Web fallback
     }
     return 'http://127.0.0.1:8000$apiPath';
   }
