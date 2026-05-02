@@ -12,7 +12,7 @@ from app.models.task import TaskStatus
 from app.crud.crud_chat import is_chat_member
 from app.crud.crud_task import (
     create_task, get_chat_tasks, get_task_by_id,
-    update_task, delete_task, convert_message_to_task,
+    update_task, delete_task, convert_message_to_task, search_chat_tasks,
 )
 from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse
 

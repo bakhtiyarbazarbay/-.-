@@ -114,6 +114,30 @@ print(f"Задач на доске: {len(tasks)}")
 for task in tasks:
     print(f"  [{task['status']}] {task['title']} (приоритет: {task['priority']})")
 
+# 9) Поиск сообщений
+print("\n=== ПОИСК СООБЩЕНИЙ ===")
+r = requests.get(f"{BASE}/chats/{chat_id}/search/messages", headers=headers, params={"query": "Bubble Sort"})
+print(f"Status: {r.status_code}")
+if r.status_code >= 400:
+    print(f"Error: {r.text}")
+    sys.exit(1)
+searched_msgs = r.json()
+print(f"Найдено сообщений: {len(searched_msgs)}")
+for sm in searched_msgs:
+    print(f"  ID: {sm['id']}, Content: {sm['content'][:30]}...")
+
+# 10) Поиск задач
+print("\n=== ПОИСК ЗАДАЧ ===")
+r = requests.get(f"{BASE}/chats/{chat_id}/search/tasks", headers=headers, params={"query": "презентацию"})
+print(f"Status: {r.status_code}")
+if r.status_code >= 400:
+    print(f"Error: {r.text}")
+    sys.exit(1)
+searched_tasks = r.json()
+print(f"Найдено задач: {len(searched_tasks)}")
+for st in searched_tasks:
+    print(f"  ID: {st['id']}, Title: {st['title']}")
+
 print("\n" + "=" * 50)
 print("  ALL TESTS PASSED SUCCESSFULLY!")
 print("=" * 50)

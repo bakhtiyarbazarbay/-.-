@@ -15,12 +15,14 @@ from app.models.chat import ChatType
 from app.crud.crud_chat import (
     create_chat, get_user_chats, get_chat_by_id,
     is_chat_member, create_message, get_chat_messages,
-    get_thread_messages, pin_message,
+    get_thread_messages, pin_message, search_chat_messages,
 )
+from app.crud.crud_task import search_chat_tasks
 from app.schemas.chat import (
     ChatCreate, ChatResponse, ChatDetail,
     MessageCreate, MessageResponse,
 )
+from app.schemas.task import TaskResponse
 
 router = APIRouter(prefix="/chats", tags=["Чаты"])
 
@@ -171,3 +173,31 @@ async def toggle_pin(
     if not msg:
         raise HTTPException(status_code=404, detail="Сообщение не найдено")
     return msg
+
+
+@router.get("/{chat_id}/search/messages", response_model=List[MessageResponse])
+async def search_messages(
+    chat_id: int,
+    query: str,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Поиск сообщений в чате по подстроке."""
+    if not await is_chat_member(db, chat_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Вы не участник этого чата")
+    return await search_chat_messages(db, chat_id, query, limit)
+
+
+@router.get("/{chat_id}/search/tasks", response_model=List[TaskResponse])
+async def search_tasks(
+    chat_id: int,
+    query: str,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Поиск задач в чате по названию или описанию."""
+    if not await is_chat_member(db, chat_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Вы не участник этого чата")
+    return await search_chat_tasks(db, chat_id, query, limit)

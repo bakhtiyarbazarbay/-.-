@@ -29,6 +29,26 @@ async def create_task(
     return task
 
 
+async def search_chat_tasks(
+    db: AsyncSession, chat_id: int, query: str, limit: int = 50
+) -> List[Task]:
+    """Поиск задач в чате по названию или описанию (без учета регистра)."""
+    from sqlalchemy import or_
+    result = await db.execute(
+        select(Task)
+        .where(Task.chat_id == chat_id)
+        .where(
+            or_(
+                Task.title.ilike(f"%{query}%"),
+                Task.description.ilike(f"%{query}%")
+            )
+        )
+        .order_by(Task.created_at.desc())
+        .limit(limit)
+    )
+    return result.scalars().all()
+
+
 async def get_chat_tasks(
     db: AsyncSession,
     chat_id: int,

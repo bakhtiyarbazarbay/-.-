@@ -125,3 +125,17 @@ async def pin_message(db: AsyncSession, message_id: int) -> Optional[Message]:
         await db.commit()
         await db.refresh(msg)
     return msg
+
+
+async def search_chat_messages(
+    db: AsyncSession, chat_id: int, query: str, limit: int = 50
+) -> List[Message]:
+    """Поиск сообщений в чате по подстроке (без учета регистра)."""
+    result = await db.execute(
+        select(Message)
+        .where(Message.chat_id == chat_id)
+        .where(Message.content.ilike(f"%{query}%"))
+        .order_by(Message.created_at.desc())
+        .limit(limit)
+    )
+    return result.scalars().all()
