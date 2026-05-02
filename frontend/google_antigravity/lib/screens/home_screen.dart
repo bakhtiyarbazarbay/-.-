@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
 import 'login_screen.dart';
+import 'chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -83,9 +84,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       title: Text(chat['name'] ?? 'Unnamed Chat'),
                       subtitle: Text(chat['description'] ?? 'No description'),
                       onTap: () {
-                        // Navigate to Chat Detail Screen (to be implemented)
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Tapped on ${chat['name']}')),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatScreen(
+                              chatId: chat['id'],
+                              chatName: chat['name'] ?? 'Unnamed Chat',
+                            ),
+                          ),
                         );
                       },
                     );
