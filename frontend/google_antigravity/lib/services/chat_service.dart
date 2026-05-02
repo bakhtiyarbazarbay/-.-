@@ -73,4 +73,31 @@ class ChatService {
       throw Exception('Failed to send message');
     }
   }
+
+  Future<Map<String, dynamic>> uploadFileAndSendMessage(int chatId, String content, List<int> fileBytes, String filename) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+
+    final uri = Uri.parse('$baseUrl/$chatId/messages/upload');
+    final request = http.MultipartRequest('POST', uri);
+
+    request.headers['Authorization'] = 'Bearer $token';
+    request.fields['content'] = content;
+
+    final multipartFile = http.MultipartFile.fromBytes(
+      'file',
+      fileBytes,
+      filename: filename,
+    );
+    request.files.add(multipartFile);
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to upload file and send message: ${response.body}');
+    }
+  }
 }

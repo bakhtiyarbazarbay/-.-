@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../services/chat_service.dart';
 import '../services/websocket_service.dart';
 
@@ -78,13 +79,50 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final newMessage = await _chatService.sendMessage(widget.chatId, text);
       setState(() {
-        // Optimistically add to UI, we'll implement websockets later
         _messages.insert(0, newMessage);
       });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to send message: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickAndUploadFile() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'txt', 'doc', 'docx'],
+        withData: true, // Need bytes for web compatibility
+      );
+
+      if (result != null && result.files.single.bytes != null) {
+        final fileBytes = result.files.single.bytes!;
+        final fileName = result.files.single.name;
+        final text = _messageController.text.trim();
+        _messageController.clear();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Uploading file...')),
+        );
+
+        final newMessage = await _chatService.uploadFileAndSendMessage(
+          widget.chatId,
+          text,
+          fileBytes,
+          fileName,
+        );
+
+        setState(() {
+          _messages.insert(0, newMessage);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('File upload failed: $e')),
         );
       }
     }
@@ -119,10 +157,36 @@ class _ChatScreenState extends State<ChatScreen> {
                         itemCount: _messages.length,
                         itemBuilder: (context, index) {
                           final msg = _messages[index];
-                          // Basic UI for message
+                          final hasFile = msg['file_url'] != null && msg['file_url'].toString().isNotEmpty;
+
                           return ListTile(
                             title: Text(msg['content'] ?? ''),
-                            subtitle: Text('User ${msg['sender_id']}'),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('User ${msg['sender_id']}'),
+                                if (hasFile)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4.0),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.attachment, size: 16),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            'Attachment: ${msg['file_url'].split('/').last}',
+                                            style: const TextStyle(
+                                              fontStyle: FontStyle.italic,
+                                              color: Colors.blue,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
                           );
                         },
                       ),
@@ -131,6 +195,11 @@ class _ChatScreenState extends State<ChatScreen> {
             padding: const EdgeInsets.all(8.0),
             child: Row(
               children: [
+                IconButton(
+                  icon: const Icon(Icons.attach_file),
+                  onPressed: _pickAndUploadFile,
+                  color: Colors.grey,
+                ),
                 Expanded(
                   child: TextField(
                     controller: _messageController,
