@@ -12,6 +12,7 @@ from app.models.chat import ChatType
 class MessageCreate(BaseModel):
     content: str
     parent_id: Optional[int] = None  # Для ответа в ветке
+    file_url: Optional[str] = None
 
 
 class MessageResponse(BaseModel):
@@ -19,6 +20,7 @@ class MessageResponse(BaseModel):
     chat_id: int
     sender_id: int
     content: str
+    file_url: Optional[str] = None
     is_pinned: bool
     parent_id: Optional[int] = None
     created_at: datetime

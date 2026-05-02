@@ -83,6 +83,7 @@ async def create_message(
         sender_id=sender_id,
         content=msg_in.content,
         parent_id=msg_in.parent_id,
+        file_url=msg_in.file_url,
     )
     db.add(message)
     await db.commit()

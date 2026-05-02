@@ -1,8 +1,11 @@
 """
 Эндпоинты для чатов и сообщений.
 """
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+import os
+import shutil
+import uuid
+from typing import List, Optional
+from fastapi import APIRouter, Depends, Form, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -66,6 +69,55 @@ async def get_chat(
 
 
 # ── Сообщения ─────────────────────────────────────────────────
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+@router.post("/{chat_id}/messages/upload", response_model=MessageResponse, status_code=201)
+async def upload_file_and_send_message(
+    chat_id: int,
+    file: UploadFile = File(...),
+    content: str = Form(""),
+    parent_id: Optional[int] = Form(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Отправить сообщение с файлом."""
+    if not await is_chat_member(db, chat_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Вы не участник этого чата")
+
+    chat = await get_chat_by_id(db, chat_id)
+    if chat.chat_type == ChatType.channel and chat.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="В канал может писать только его создатель")
+
+    ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".pdf", ".txt", ".doc", ".docx"}
+
+    # Generate secure filename
+    file_extension = ""
+    if file.filename and "." in file.filename:
+        file_extension = f".{file.filename.split('.')[-1].lower()}"
+
+    if file_extension not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Тип файла не поддерживается")
+
+    secure_filename = f"{uuid.uuid4()}{file_extension}"
+
+    file_path = os.path.join(UPLOAD_DIR, secure_filename)
+
+    # Использование асинхронной записи
+    try:
+        import aiofiles
+        async with aiofiles.open(file_path, 'wb') as out_file:
+            while content_chunk := await file.read(1024 * 1024):  # читаем чанками по 1MB
+                await out_file.write(content_chunk)
+    except ImportError:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+    file_url = f"/static/uploads/{secure_filename}"
+
+    msg_in = MessageCreate(content=content, parent_id=parent_id, file_url=file_url)
+    return await create_message(db, chat_id, current_user.id, msg_in)
 
 @router.post("/{chat_id}/messages", response_model=MessageResponse, status_code=201)
 async def send_message(

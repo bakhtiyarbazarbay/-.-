@@ -52,6 +52,7 @@ class Message(Base):
     chat_id = Column(Integer, ForeignKey("chats.id", ondelete="CASCADE"), nullable=False)
     sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     content = Column(Text, nullable=False)              # Поддержка Markdown
+    file_url = Column(String(500), nullable=True)       # URL прикрепленного файла
     is_pinned = Column(Boolean, default=False)          # Закрепление постов
     parent_id = Column(Integer, ForeignKey("messages.id"), nullable=True)  # Для веток (threads)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

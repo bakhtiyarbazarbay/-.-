@@ -63,6 +63,23 @@ if r.status_code >= 400:
 msg = r.json()
 print(f"Message ID: {msg['id']}")
 
+# 5.1) Отправка сообщения с файлом
+print("\n=== ОТПРАВКА СООБЩЕНИЯ С ФАЙЛОМ ===")
+with open("test_file.txt", "w") as f:
+    f.write("This is a test file for upload.")
+
+with open("test_file.txt", "rb") as f:
+    files = {"file": ("test_file.txt", f, "text/plain")}
+    data = {"content": "Attached a test file!"}
+    r = requests.post(f"{BASE}/chats/{chat_id}/messages/upload", headers=headers, files=files, data=data)
+
+print(f"Status: {r.status_code}")
+if r.status_code >= 400:
+    print(f"Error: {r.text}")
+    sys.exit(1)
+msg_with_file = r.json()
+print(f"Message ID: {msg_with_file['id']}, File URL: {msg_with_file['file_url']}")
+
 # 6) Конвертация сообщение -> задача
 print("\n=== КОНВЕРТАЦИЯ СООБЩЕНИЕ -> ЗАДАЧА ===")
 r = requests.post(
