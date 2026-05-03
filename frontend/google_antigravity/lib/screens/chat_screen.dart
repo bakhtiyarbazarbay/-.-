@@ -20,6 +20,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
   List<dynamic> _messages = [];
   bool _isLoading = true;
+  Map<String, dynamic>? _replyingToMessage;
 
   @override
   void initState() {
@@ -76,9 +77,14 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty) return;
 
     _messageController.clear();
+    final parentId = _replyingToMessage?['id'];
+
+    setState(() {
+      _replyingToMessage = null;
+    });
 
     try {
-      final newMessage = await _chatService.sendMessage(widget.chatId, text);
+      final newMessage = await _chatService.sendMessage(widget.chatId, text, parentId: parentId);
       setState(() {
         _messages.insert(0, newMessage);
       });
@@ -109,11 +115,18 @@ class _ChatScreenState extends State<ChatScreen> {
           const SnackBar(content: Text('Uploading file...')),
         );
 
+        final parentId = _replyingToMessage?['id'];
+
+        setState(() {
+          _replyingToMessage = null;
+        });
+
         final newMessage = await _chatService.uploadFileAndSendMessage(
           widget.chatId,
           text,
           fileBytes,
           fileName,
+          parentId: parentId,
         );
 
         setState(() {
@@ -174,39 +187,84 @@ class _ChatScreenState extends State<ChatScreen> {
                         itemBuilder: (context, index) {
                           final msg = _messages[index];
                           final hasFile = msg['file_url'] != null && msg['file_url'].toString().isNotEmpty;
+                          final isReply = msg['parent_id'] != null;
 
-                          return ListTile(
-                            title: Text(msg['content'] ?? ''),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('User ${msg['sender_id']}'),
-                                if (hasFile)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4.0),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.attachment, size: 16),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Text(
-                                            'Attachment: ${msg['file_url'].split('/').last}',
-                                            style: const TextStyle(
-                                              fontStyle: FontStyle.italic,
-                                              color: Colors.blue,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
+                          return InkWell(
+                            onLongPress: () {
+                              setState(() {
+                                _replyingToMessage = msg;
+                              });
+                            },
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                left: isReply ? 32.0 : 8.0,
+                                right: 8.0, top: 4.0, bottom: 4.0
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  border: isReply ? Border(left: BorderSide(color: Colors.grey.shade300, width: 2)) : null,
+                                ),
+                                child: ListTile(
+                                  title: Text(msg['content'] ?? ''),
+                                  subtitle: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('User ${msg['sender_id']}'),
+                                      if (hasFile)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 4.0),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.attachment, size: 16),
+                                              const SizedBox(width: 4),
+                                              Expanded(
+                                                child: Text(
+                                                  'Attachment: ${msg['file_url'].split('/').last}',
+                                                  style: const TextStyle(
+                                                    fontStyle: FontStyle.italic,
+                                                    color: Colors.blue,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                      ],
-                                    ),
+                                    ],
                                   ),
-                              ],
+                                ),
+                              ),
                             ),
                           );
                         },
                       ),
           ),
+          if (_replyingToMessage != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              color: Colors.grey.shade200,
+              child: Row(
+                children: [
+                  const Icon(Icons.reply),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Replying to: ${_replyingToMessage!['content']}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      setState(() {
+                        _replyingToMessage = null;
+                      });
+                    },
+                  )
+                ],
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(

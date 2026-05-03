@@ -248,15 +248,51 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       bodyContent = _isLoadingTaskLists
           ? const Center(child: CircularProgressIndicator())
-          : _taskLists.isEmpty
-              ? const Center(child: Text('No personal lists found.'))
-              : ListView.builder(
-                  itemCount: _taskLists.length,
-                  itemBuilder: (context, index) {
-                    final taskList = _taskLists[index];
+          : ListView(
+              children: [
+                // Smart Lists Section
+                ListTile(
+                  leading: const Icon(Icons.all_inbox, color: Colors.blue),
+                  title: const Text('All Tasks'),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => const KanbanScreen(globalFilter: 'all', boardName: 'All Tasks'),
+                  )),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.today, color: Colors.green),
+                  title: const Text('Today'),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => const KanbanScreen(globalFilter: 'today', boardName: 'Today'),
+                  )),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.calendar_view_week, color: Colors.purple),
+                  title: const Text('Next 7 Days'),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => const KanbanScreen(globalFilter: 'upcoming', boardName: 'Next 7 Days'),
+                  )),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.move_to_inbox, color: Colors.orange),
+                  title: const Text('Inbox'),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => const KanbanScreen(globalFilter: 'inbox', boardName: 'Inbox'),
+                  )),
+                ),
+                const Divider(),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Text('PERSONAL LISTS', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                ),
+                if (_taskLists.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(child: Text('No personal lists found.')),
+                  ),
+                ..._taskLists.map((taskList) {
                     return ListTile(
                       leading: const CircleAvatar(
-                        backgroundColor: Colors.orange,
+                        backgroundColor: Colors.orangeAccent,
                         child: Icon(Icons.list, color: Colors.white),
                       ),
                       title: Text(taskList['name']),
@@ -272,8 +308,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       },
                     );
-                  },
-                );
+                }),
+              ],
+            );
     }
 
     return Scaffold(

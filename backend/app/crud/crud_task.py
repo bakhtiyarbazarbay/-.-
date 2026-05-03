@@ -64,6 +64,53 @@ async def get_chat_tasks(
     return result.scalars().all()
 
 
+async def get_global_tasks_for_user(
+    db: AsyncSession,
+    user_id: int,
+    filter_type: str = "all"
+) -> List[Task]:
+    """
+    Получить глобальные задачи для пользователя.
+    filter_type: "all", "today", "upcoming" (next 7 days), "inbox"
+    """
+    from datetime import datetime, timedelta, timezone
+    from app.models.chat import chat_members
+    from app.models.task import TaskList
+
+    # Базовый запрос: задачи, где пользователь создатель, назначенец,
+    # или задача принадлежит чату, в котором состоит пользователь,
+    # или задача принадлежит личному списку пользователя.
+
+    query = select(Task).distinct().outerjoin(
+        chat_members, Task.chat_id == chat_members.c.chat_id
+    ).outerjoin(
+        TaskList, Task.task_list_id == TaskList.id
+    ).where(
+        (Task.created_by == user_id) |
+        (Task.assigned_to == user_id) |
+        (chat_members.c.user_id == user_id) |
+        (TaskList.user_id == user_id) |
+        ((Task.chat_id.is_(None)) & (Task.task_list_id.is_(None)) & (Task.created_by == user_id)) # Inbox
+    )
+
+    now = datetime.now(timezone.utc)
+
+    if filter_type == "today":
+        end_of_day = now.replace(hour=23, minute=59, second=59)
+        query = query.where(Task.deadline != None).where(Task.deadline <= end_of_day).where(Task.status != TaskStatus.done)
+    elif filter_type == "upcoming":
+        seven_days_later = now + timedelta(days=7)
+        query = query.where(Task.deadline != None).where(Task.deadline <= seven_days_later).where(Task.status != TaskStatus.done)
+    elif filter_type == "inbox":
+        # Inbox = Задачи без чата и без списка
+        query = query.where(Task.chat_id.is_(None)).where(Task.task_list_id.is_(None))
+
+    query = query.order_by(Task.created_at.desc())
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+
 async def get_list_tasks(
     db: AsyncSession,
     list_id: int,

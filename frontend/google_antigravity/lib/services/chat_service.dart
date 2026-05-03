@@ -82,9 +82,14 @@ class ChatService {
     }
   }
 
-  Future<Map<String, dynamic>> sendMessage(int chatId, String content) async {
+  Future<Map<String, dynamic>> sendMessage(int chatId, String content, {int? parentId}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token');
+
+    final Map<String, dynamic> requestBody = {'content': content};
+    if (parentId != null) {
+      requestBody['parent_id'] = parentId;
+    }
 
     final response = await http.post(
       Uri.parse('$baseUrl/$chatId/messages'),
@@ -92,9 +97,7 @@ class ChatService {
         'Content-Type': 'application/json; charset=UTF-8',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode(<String, dynamic>{
-        'content': content,
-      }),
+      body: jsonEncode(requestBody),
     );
 
     if (response.statusCode == 201) {
@@ -104,7 +107,7 @@ class ChatService {
     }
   }
 
-  Future<Map<String, dynamic>> uploadFileAndSendMessage(int chatId, String content, List<int> fileBytes, String filename) async {
+  Future<Map<String, dynamic>> uploadFileAndSendMessage(int chatId, String content, List<int> fileBytes, String filename, {int? parentId}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token');
 
@@ -113,6 +116,9 @@ class ChatService {
 
     request.headers['Authorization'] = 'Bearer $token';
     request.fields['content'] = content;
+    if (parentId != null) {
+      request.fields['parent_id'] = parentId.toString();
+    }
 
     final multipartFile = http.MultipartFile.fromBytes(
       'file',

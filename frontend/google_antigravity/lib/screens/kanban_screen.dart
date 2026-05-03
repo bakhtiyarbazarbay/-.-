@@ -5,14 +5,16 @@ import '../services/task_list_service.dart';
 class KanbanScreen extends StatefulWidget {
   final int? chatId;
   final int? taskListId;
+  final String? globalFilter; // e.g. "all", "today", "upcoming", "inbox"
   final String boardName;
 
   const KanbanScreen({
     super.key,
     this.chatId,
     this.taskListId,
+    this.globalFilter,
     required this.boardName,
-  }) : assert(chatId != null || taskListId != null, 'Either chatId or taskListId must be provided');
+  }) : assert(chatId != null || taskListId != null || globalFilter != null, 'Provide chatId, taskListId or globalFilter');
 
   @override
   State<KanbanScreen> createState() => _KanbanScreenState();
@@ -35,7 +37,9 @@ class _KanbanScreenState extends State<KanbanScreen> {
     setState(() => _isLoading = true);
     try {
       List<dynamic> tasks;
-      if (widget.chatId != null) {
+      if (widget.globalFilter != null) {
+        tasks = await _taskService.getGlobalTasks(widget.globalFilter!);
+      } else if (widget.chatId != null) {
         tasks = await _taskService.getChatTasks(widget.chatId!);
       } else {
         tasks = await _taskListService.getTasksInList(widget.taskListId!);
@@ -61,7 +65,13 @@ class _KanbanScreenState extends State<KanbanScreen> {
     });
 
     try {
-      if (widget.chatId != null) {
+      if (widget.globalFilter != null) {
+         ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(content: Text('Cannot drag&drop in Smart Lists yet. Updating from here requires a unified task endpoint.')),
+        );
+        await _loadTasks();
+        return;
+      } else if (widget.chatId != null) {
         await _taskService.updateTaskStatus(widget.chatId!, task['id'], newStatus);
       } else {
         await _taskListService.updateTaskStatus(widget.taskListId!, task['id'], newStatus);
@@ -119,7 +129,13 @@ class _KanbanScreenState extends State<KanbanScreen> {
                     if (title.isNotEmpty) {
                       Navigator.pop(context);
                       try {
-                        if (widget.chatId != null) {
+                        if (widget.globalFilter != null) {
+                           // For MVP, if creating from a global view, we could create an inbox task.
+                           // I'll skip it for now to keep UI simple, or we can use the inbox endpoint if it's the "inbox" filter.
+                           ScaffoldMessenger.of(context).showSnackBar(
+                             const SnackBar(content: Text('Create tasks inside specific chats or lists.')),
+                           );
+                        } else if (widget.chatId != null) {
                           await _taskService.createChatTask(widget.chatId!, title, priority);
                         } else {
                           await _taskListService.createTaskInList(widget.taskListId!, title, priority);

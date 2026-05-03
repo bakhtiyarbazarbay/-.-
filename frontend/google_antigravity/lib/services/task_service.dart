@@ -5,7 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io' show Platform;
 
 class TaskService {
-  String _getBaseUrl(int chatId) {
+  String _getChatTaskUrl(int chatId) {
     final configuredUrl = dotenv.env['API_URL'];
     if (configuredUrl != null && configuredUrl.isNotEmpty) {
       return '$configuredUrl/chats/$chatId/tasks';
@@ -20,12 +20,27 @@ class TaskService {
     return 'http://127.0.0.1:8000$apiPath/$chatId/tasks';
   }
 
+  String _getGlobalTaskUrl() {
+    final configuredUrl = dotenv.env['API_URL'];
+    if (configuredUrl != null && configuredUrl.isNotEmpty) {
+      return '$configuredUrl/tasks/me';
+    }
+
+    const String apiPath = '/api/v1/tasks/me';
+    try {
+      if (Platform.isAndroid) {
+        return 'http://10.0.2.2:8000$apiPath';
+      }
+    } catch (e) {}
+    return 'http://127.0.0.1:8000$apiPath';
+  }
+
   Future<List<dynamic>> getChatTasks(int chatId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token');
 
     final response = await http.get(
-      Uri.parse('${_getBaseUrl(chatId)}/'),
+      Uri.parse('${_getChatTaskUrl(chatId)}/'),
       headers: {
         'Content-Type': 'application/json; charset=UTF-8',
         'Authorization': 'Bearer $token',
@@ -44,7 +59,7 @@ class TaskService {
     final token = prefs.getString('jwt_token');
 
     final response = await http.post(
-      Uri.parse('${_getBaseUrl(chatId)}/'),
+      Uri.parse('${_getChatTaskUrl(chatId)}/'),
       headers: {
         'Content-Type': 'application/json; charset=UTF-8',
         'Authorization': 'Bearer $token',
@@ -67,7 +82,7 @@ class TaskService {
     final token = prefs.getString('jwt_token');
 
     final response = await http.put(
-      Uri.parse('${_getBaseUrl(chatId)}/$taskId'),
+      Uri.parse('${_getChatTaskUrl(chatId)}/$taskId'),
       headers: {
         'Content-Type': 'application/json; charset=UTF-8',
         'Authorization': 'Bearer $token',
@@ -81,6 +96,27 @@ class TaskService {
       return jsonDecode(response.body);
     } else {
       throw Exception('Failed to update task status');
+    }
+  }
+
+  // --- Smart Lists Endpoints ---
+
+  Future<List<dynamic>> getGlobalTasks(String filterType) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+
+    final response = await http.get(
+      Uri.parse('${_getGlobalTaskUrl()}/$filterType'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load global tasks');
     }
   }
 }
