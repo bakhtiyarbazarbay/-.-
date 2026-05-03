@@ -20,3 +20,45 @@ Thumbs.db
 # Project specific
 google_antigravity_transfer.zip
 alembic/versions/*.pyc
+
+# Frontend (Flutter)
+frontend/google_antigravity/.dart_tool/
+frontend/google_antigravity/.flutter-plugins
+frontend/google_antigravity/.flutter-plugins-dependencies
+frontend/google_antigravity/.pub-cache/
+frontend/google_antigravity/.pub/
+frontend/google_antigravity/build/
+frontend/google_antigravity/android/app/build/
+frontend/google_antigravity/ios/Flutter/.last_build_id
+frontend/google_antigravity/ios/Flutter/App.framework
+frontend/google_antigravity/ios/Flutter/Flutter.framework
+frontend/google_antigravity/ios/Flutter/Flutter.podspec
+frontend/google_antigravity/ios/Flutter/Generated.xcconfig
+frontend/google_antigravity/ios/Flutter/app.flx
+frontend/google_antigravity/ios/Flutter/app.zip
+frontend/google_antigravity/ios/Flutter/flutter_assets/
+frontend/google_antigravity/ios/Flutter/flutter_export_environment.sh
+frontend/google_antigravity/ios/Pods/
+frontend/google_antigravity/macos/Flutter/GeneratedPluginRegistrant.swift
+frontend/google_antigravity/macos/Flutter/ephemeral
+frontend/google_antigravity/macos/Pods/
+frontend/google_antigravity/windows/flutter/ephemeral/
+frontend/google_antigravity/windows/flutter/generated_plugin_registrant.cc
+frontend/google_antigravity/windows/flutter/generated_plugins.cmake
+frontend/google_antigravity/linux/flutter/ephemeral/
+frontend/google_antigravity/linux/flutter/generated_plugin_registrant.cc
+frontend/google_antigravity/linux/flutter/generated_plugins.cmake
+
+# Ignore whole frontend initially while scaffolding
+# Will adjust this later
+# frontend/
+frontend/google_antigravity/macos/Runner.xcodeproj/
+frontend/google_antigravity/macos/Runner.xcworkspace/
+frontend/google_antigravity/ios/Runner.xcodeproj/
+frontend/google_antigravity/ios/Runner.xcworkspace/
+frontend/google_antigravity/android/
+frontend/google_antigravity/ios/
+frontend/google_antigravity/macos/
+frontend/google_antigravity/linux/
+frontend/google_antigravity/windows/
+frontend/google_antigravity/web/

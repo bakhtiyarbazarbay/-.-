@@ -1,23 +1,30 @@
 """
 Эндпоинты для чатов и сообщений.
 """
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+import os
+import shutil
+import uuid
+from typing import List, Optional
+from fastapi import APIRouter, Depends, Form, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.chat import ChatType
+from app.api.deps import get_current_admin
 from app.crud.crud_chat import (
     create_chat, get_user_chats, get_chat_by_id,
     is_chat_member, create_message, get_chat_messages,
-    get_thread_messages, pin_message,
+    get_thread_messages, pin_message, search_chat_messages,
+    get_all_chats, delete_chat, change_chat_creator
 )
+from app.crud.crud_task import search_chat_tasks
 from app.schemas.chat import (
     ChatCreate, ChatResponse, ChatDetail,
     MessageCreate, MessageResponse,
 )
+from app.schemas.task import TaskResponse
 
 router = APIRouter(prefix="/chats", tags=["Чаты"])
 
@@ -40,6 +47,44 @@ async def list_my_chats(
 ):
     """Получить все чаты текущего пользователя."""
     return await get_user_chats(db, current_user.id)
+
+
+@router.get("/all", response_model=List[ChatResponse])
+async def list_all_chats_admin(
+    skip: int = 0,
+    limit: int = 50,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Получить все чаты (только для админов)."""
+    return await get_all_chats(db, skip, limit)
+
+
+@router.delete("/{chat_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_chat_admin(
+    chat_id: int,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Удалить чат (только для админов)."""
+    chat = await get_chat_by_id(db, chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Чат не найден")
+    await delete_chat(db, chat)
+
+
+@router.put("/{chat_id}/creator", response_model=ChatResponse)
+async def transfer_chat_ownership(
+    chat_id: int,
+    new_creator_id: int,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Передать права создателя чата другому пользователю (только для админов)."""
+    chat = await get_chat_by_id(db, chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Чат не найден")
+    return await change_chat_creator(db, chat, new_creator_id)
 
 
 @router.get("/{chat_id}", response_model=ChatDetail)
@@ -66,6 +111,55 @@ async def get_chat(
 
 
 # ── Сообщения ─────────────────────────────────────────────────
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+@router.post("/{chat_id}/messages/upload", response_model=MessageResponse, status_code=201)
+async def upload_file_and_send_message(
+    chat_id: int,
+    file: UploadFile = File(...),
+    content: str = Form(""),
+    parent_id: Optional[int] = Form(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Отправить сообщение с файлом."""
+    if not await is_chat_member(db, chat_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Вы не участник этого чата")
+
+    chat = await get_chat_by_id(db, chat_id)
+    if chat.chat_type == ChatType.channel and chat.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="В канал может писать только его создатель")
+
+    ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".pdf", ".txt", ".doc", ".docx"}
+
+    # Generate secure filename
+    file_extension = ""
+    if file.filename and "." in file.filename:
+        file_extension = f".{file.filename.split('.')[-1].lower()}"
+
+    if file_extension not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Тип файла не поддерживается")
+
+    secure_filename = f"{uuid.uuid4()}{file_extension}"
+
+    file_path = os.path.join(UPLOAD_DIR, secure_filename)
+
+    # Использование асинхронной записи
+    try:
+        import aiofiles
+        async with aiofiles.open(file_path, 'wb') as out_file:
+            while content_chunk := await file.read(1024 * 1024):  # читаем чанками по 1MB
+                await out_file.write(content_chunk)
+    except ImportError:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+    file_url = f"/static/uploads/{secure_filename}"
+
+    msg_in = MessageCreate(content=content, parent_id=parent_id, file_url=file_url)
+    return await create_message(db, chat_id, current_user.id, msg_in)
 
 @router.post("/{chat_id}/messages", response_model=MessageResponse, status_code=201)
 async def send_message(
@@ -119,3 +213,31 @@ async def toggle_pin(
     if not msg:
         raise HTTPException(status_code=404, detail="Сообщение не найдено")
     return msg
+
+
+@router.get("/{chat_id}/search/messages", response_model=List[MessageResponse])
+async def search_messages(
+    chat_id: int,
+    query: str,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Поиск сообщений в чате по подстроке."""
+    if not await is_chat_member(db, chat_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Вы не участник этого чата")
+    return await search_chat_messages(db, chat_id, query, limit)
+
+
+@router.get("/{chat_id}/search/tasks", response_model=List[TaskResponse])
+async def search_tasks(
+    chat_id: int,
+    query: str,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Поиск задач в чате по названию или описанию."""
+    if not await is_chat_member(db, chat_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Вы не участник этого чата")
+    return await search_chat_tasks(db, chat_id, query, limit)

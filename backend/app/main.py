@@ -5,8 +5,10 @@ Google Antigravity — Backend API.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
-from app.api.routes import auth, users, chats, tasks, websocket
+from app.api.routes import auth, users, chats, tasks, task_lists, websocket, global_tasks
+import os
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -29,10 +31,15 @@ app.add_middleware(
 # ── Подключение роутеров ──────────────────────────────────────
 API_PREFIX = settings.API_V1_STR
 
+os.makedirs("uploads", exist_ok=True)
+app.mount("/static/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 app.include_router(auth.router, prefix=API_PREFIX)
 app.include_router(users.router, prefix=API_PREFIX)
 app.include_router(chats.router, prefix=API_PREFIX)
 app.include_router(tasks.router, prefix=API_PREFIX)
+app.include_router(task_lists.router, prefix=API_PREFIX)
+app.include_router(global_tasks.router, prefix=API_PREFIX)
 app.include_router(websocket.router)  # WebSocket — без API-префикса
 
 
