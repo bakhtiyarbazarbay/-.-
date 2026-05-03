@@ -17,14 +17,16 @@ from app.crud.crud_chat import (
     create_chat, get_user_chats, get_chat_by_id,
     is_chat_member, create_message, get_chat_messages,
     get_thread_messages, pin_message, search_chat_messages,
-    get_all_chats, delete_chat, change_chat_creator
+    get_all_chats, delete_chat, change_chat_creator,
+    get_chat_members_list, add_chat_members, remove_chat_member
 )
 from app.crud.crud_task import search_chat_tasks
 from app.schemas.chat import (
     ChatCreate, ChatResponse, ChatDetail,
-    MessageCreate, MessageResponse,
+    MessageCreate, MessageResponse, ChatMemberAdd
 )
 from app.schemas.task import TaskResponse
+from app.schemas.user import UserResponse
 
 router = APIRouter(prefix="/chats", tags=["Чаты"])
 
@@ -108,6 +110,73 @@ async def get_chat(
         created_at=chat.created_at,
         member_count=len(chat.members),
     )
+
+
+@router.get("/{chat_id}/members", response_model=List[UserResponse])
+async def list_chat_members(
+    chat_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Получить список участников чата."""
+    if not await is_chat_member(db, chat_id, current_user.id):
+        raise HTTPException(status_code=403, detail="Вы не участник этого чата")
+    return await get_chat_members_list(db, chat_id)
+
+
+@router.post("/{chat_id}/members", status_code=status.HTTP_200_OK)
+async def add_members_to_chat(
+    chat_id: int,
+    members_in: ChatMemberAdd,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Добавить пользователей в чат (только создатель)."""
+    chat = await get_chat_by_id(db, chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Чат не найден")
+    if chat.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Только создатель может добавлять участников")
+
+    await add_chat_members(db, chat_id, members_in.user_ids)
+    return {"message": "Участники добавлены"}
+
+
+@router.delete("/{chat_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_member_from_chat(
+    chat_id: int,
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Удалить пользователя из чата (только создатель)."""
+    chat = await get_chat_by_id(db, chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Чат не найден")
+    if chat.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Только создатель может удалять участников")
+    if chat.created_by == user_id:
+        raise HTTPException(status_code=400, detail="Создатель не может удалить себя. Используйте передачу прав или удалите чат.")
+
+    await remove_chat_member(db, chat_id, user_id)
+
+
+@router.delete("/{chat_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+async def leave_chat(
+    chat_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Выйти из чата."""
+    chat = await get_chat_by_id(db, chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Чат не найден")
+    if not await is_chat_member(db, chat_id, current_user.id):
+        raise HTTPException(status_code=400, detail="Вы не участник этого чата")
+    if chat.created_by == current_user.id:
+        raise HTTPException(status_code=400, detail="Создатель не может просто выйти. Передайте права или удалите чат.")
+
+    await remove_chat_member(db, chat_id, current_user.id)
 
 
 # ── Сообщения ─────────────────────────────────────────────────

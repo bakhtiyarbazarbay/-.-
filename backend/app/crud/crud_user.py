@@ -29,6 +29,18 @@ async def get_users(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[U
     return result.scalars().all()
 
 
+async def search_users(db: AsyncSession, query: str, limit: int = 50) -> List[User]:
+    """Поиск пользователей по email или ФИО."""
+    result = await db.execute(
+        select(User)
+        .where(
+            (User.email.ilike(f"%{query}%")) | (User.full_name.ilike(f"%{query}%"))
+        )
+        .limit(limit)
+    )
+    return result.scalars().all()
+
+
 async def create_user(db: AsyncSession, user_in: UserCreate) -> User:
     """Создать нового пользователя."""
     hashed_password = get_password_hash(user_in.password)
