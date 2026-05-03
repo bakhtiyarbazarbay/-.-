@@ -3,6 +3,7 @@ import '../services/auth_service.dart';
 import '../services/chat_service.dart';
 import 'login_screen.dart';
 import 'chat_screen.dart';
+import 'admin_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,12 +16,25 @@ class _HomeScreenState extends State<HomeScreen> {
   final _authService = AuthService();
   final _chatService = ChatService();
   List<dynamic> _chats = [];
+  Map<String, dynamic>? _currentUser;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadChats();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    try {
+      final user = await _authService.getCurrentUser();
+      setState(() {
+        _currentUser = user;
+      });
+      await _loadChats();
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadChats() async {
@@ -118,11 +132,39 @@ class _HomeScreenState extends State<HomeScreen> {
               _loadChats();
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-          )
         ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            UserAccountsDrawerHeader(
+              accountName: Text(_currentUser?['full_name'] ?? 'Loading...'),
+              accountEmail: Text(_currentUser?['email'] ?? ''),
+              currentAccountPicture: const CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Icon(Icons.person),
+              ),
+            ),
+            if (_currentUser?['role'] == 'admin')
+              ListTile(
+                leading: const Icon(Icons.admin_panel_settings),
+                title: const Text('Admin Dashboard'),
+                onTap: () {
+                  Navigator.pop(context); // close drawer
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AdminScreen()),
+                  );
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Logout'),
+              onTap: _logout,
+            ),
+          ],
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

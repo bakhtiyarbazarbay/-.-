@@ -105,6 +105,38 @@ async def get_chat_messages(
     return result.scalars().all()
 
 
+async def get_all_chats(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Chat]:
+    """Получить все чаты системы (для админа)."""
+    result = await db.execute(
+        select(Chat).order_by(Chat.created_at.desc()).offset(skip).limit(limit)
+    )
+    return result.scalars().all()
+
+
+async def delete_chat(db: AsyncSession, chat: Chat) -> None:
+    """Удалить чат."""
+    await db.delete(chat)
+    await db.commit()
+
+
+async def change_chat_creator(db: AsyncSession, chat: Chat, new_creator_id: int) -> Chat:
+    """Изменить владельца чата."""
+    chat.created_by = new_creator_id
+    await db.commit()
+    await db.refresh(chat)
+
+    # Также добавляем нового владельца в участники чата, если его там нет
+    is_member = await is_chat_member(db, chat.id, new_creator_id)
+    if not is_member:
+        await db.execute(
+            chat_members.insert().values(chat_id=chat.id, user_id=new_creator_id)
+        )
+        await db.commit()
+        await db.refresh(chat)
+
+    return chat
+
+
 async def get_thread_messages(
     db: AsyncSession, parent_id: int
 ) -> List[Message]:

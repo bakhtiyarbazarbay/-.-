@@ -76,4 +76,38 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('jwt_token');
   }
+
+  Future<Map<String, dynamic>> getCurrentUser() async {
+    final token = await getToken();
+    final configuredUrl = dotenv.env['API_URL'];
+    String usersUrl = '';
+
+    if (configuredUrl != null && configuredUrl.isNotEmpty) {
+      usersUrl = '$configuredUrl/users/me';
+    } else {
+      try {
+        if (Platform.isAndroid) {
+          usersUrl = 'http://10.0.2.2:8000/api/v1/users/me';
+        } else {
+           usersUrl = 'http://127.0.0.1:8000/api/v1/users/me';
+        }
+      } catch (e) {
+        usersUrl = 'http://127.0.0.1:8000/api/v1/users/me';
+      }
+    }
+
+    final response = await http.get(
+      Uri.parse(usersUrl),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load profile');
+    }
+  }
 }
