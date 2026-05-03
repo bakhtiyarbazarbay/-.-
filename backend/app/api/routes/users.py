@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.api.deps import get_current_user, get_current_admin
-from app.crud.crud_user import get_users, get_user_by_id, update_user
+from app.crud.crud_user import get_users, get_user_by_id, update_user, search_users
 from app.models.user import User
 from app.schemas.user import UserResponse, UserUpdate
 
@@ -36,6 +36,17 @@ async def update_current_user(
             detail="Нельзя изменить собственную роль",
         )
     return await update_user(db, current_user, user_in)
+
+
+@router.get("/search", response_model=List[UserResponse])
+async def search_for_users(
+    query: str,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Поиск пользователей по email или ФИО (доступно всем авторизованным пользователям)."""
+    return await search_users(db, query, limit=limit)
 
 
 @router.get("/", response_model=List[UserResponse])

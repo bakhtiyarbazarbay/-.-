@@ -74,6 +74,38 @@ async def is_chat_member(db: AsyncSession, chat_id: int, user_id: int) -> bool:
     return result.first() is not None
 
 
+async def get_chat_members_list(db: AsyncSession, chat_id: int) -> List[User]:
+    """Получить список участников чата."""
+    result = await db.execute(
+        select(User)
+        .join(chat_members)
+        .where(chat_members.c.chat_id == chat_id)
+    )
+    return result.scalars().all()
+
+
+async def add_chat_members(db: AsyncSession, chat_id: int, user_ids: List[int]) -> None:
+    """Добавить пользователей в чат."""
+    for user_id in user_ids:
+        if not await is_chat_member(db, chat_id, user_id):
+            user = await db.get(User, user_id)
+            if user:
+                await db.execute(
+                    chat_members.insert().values(chat_id=chat_id, user_id=user_id)
+                )
+    await db.commit()
+
+
+async def remove_chat_member(db: AsyncSession, chat_id: int, user_id: int) -> None:
+    """Удалить пользователя из чата."""
+    await db.execute(
+        chat_members.delete()
+        .where(chat_members.c.chat_id == chat_id)
+        .where(chat_members.c.user_id == user_id)
+    )
+    await db.commit()
+
+
 async def create_message(
     db: AsyncSession, chat_id: int, sender_id: int, msg_in: MessageCreate
 ) -> Message:

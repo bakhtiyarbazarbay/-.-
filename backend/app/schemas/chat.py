@@ -52,3 +52,7 @@ class ChatResponse(BaseModel):
 class ChatDetail(ChatResponse):
     """Подробная информация о чате с последними сообщениями."""
     member_count: int = 0
+
+
+class ChatMemberAdd(BaseModel):
+    user_ids: List[int]
