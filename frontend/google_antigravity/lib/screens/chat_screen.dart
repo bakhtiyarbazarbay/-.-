@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/chat_service.dart';
 import '../services/websocket_service.dart';
+import 'kanban_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final int chatId;
@@ -134,6 +135,21 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Text(widget.chatName),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.dashboard),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => KanbanScreen(
+                    chatId: widget.chatId,
+                    boardName: '${widget.chatName} Board',
+                  ),
+                ),
+              );
+            },
+            tooltip: 'Kanban Board',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {

@@ -10,11 +10,12 @@ from app.schemas.task import TaskCreate, TaskUpdate
 
 
 async def create_task(
-    db: AsyncSession, chat_id: int, creator_id: int, task_in: TaskCreate
+    db: AsyncSession, chat_id: Optional[int], creator_id: int, task_in: TaskCreate
 ) -> Task:
-    """Создать задачу, привязанную к чату."""
+    """Создать задачу, привязанную к чату или списку."""
     task = Task(
         chat_id=chat_id,
+        task_list_id=task_in.task_list_id,
         title=task_in.title,
         description=task_in.description,
         priority=task_in.priority,
@@ -56,6 +57,20 @@ async def get_chat_tasks(
 ) -> List[Task]:
     """Получить задачи чата (опционально фильтрация по статусу)."""
     query = select(Task).where(Task.chat_id == chat_id)
+    if status_filter:
+        query = query.where(Task.status == status_filter)
+    query = query.order_by(Task.created_at.desc())
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+async def get_list_tasks(
+    db: AsyncSession,
+    list_id: int,
+    status_filter: Optional[TaskStatus] = None,
+) -> List[Task]:
+    """Получить задачи из личного списка."""
+    query = select(Task).where(Task.task_list_id == list_id)
     if status_filter:
         query = query.where(Task.status == status_filter)
     query = query.order_by(Task.created_at.desc())

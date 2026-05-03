@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
-from app.api.routes import auth, users, chats, tasks, websocket
+from app.api.routes import auth, users, chats, tasks, task_lists, websocket
 import os
 
 app = FastAPI(
@@ -38,6 +38,7 @@ app.include_router(auth.router, prefix=API_PREFIX)
 app.include_router(users.router, prefix=API_PREFIX)
 app.include_router(chats.router, prefix=API_PREFIX)
 app.include_router(tasks.router, prefix=API_PREFIX)
+app.include_router(task_lists.router, prefix=API_PREFIX)
 app.include_router(websocket.router)  # WebSocket — без API-префикса
 
 

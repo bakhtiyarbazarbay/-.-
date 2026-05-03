@@ -24,12 +24,27 @@ class TaskPriority(str, enum.Enum):
     urgent = "urgent"
 
 
+class TaskList(Base):
+    """Персональный список задач пользователя."""
+    __tablename__ = "task_lists"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User", backref="task_lists")
+    tasks = relationship("Task", back_populates="task_list", cascade="all, delete-orphan")
+
+
 class Task(Base):
-    """Задача, привязанная к конкретному чату."""
+    """Задача, привязанная к чату ИЛИ персональному списку."""
     __tablename__ = "tasks"
 
     id = Column(Integer, primary_key=True, index=True)
-    chat_id = Column(Integer, ForeignKey("chats.id", ondelete="CASCADE"), nullable=False)
+    chat_id = Column(Integer, ForeignKey("chats.id", ondelete="CASCADE"), nullable=True)
+    task_list_id = Column(Integer, ForeignKey("task_lists.id", ondelete="CASCADE"), nullable=True)
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
     status = Column(Enum(TaskStatus), default=TaskStatus.todo, nullable=False)
@@ -49,6 +64,7 @@ class Task(Base):
 
     # Связи
     chat = relationship("Chat", back_populates="tasks")
+    task_list = relationship("TaskList", back_populates="tasks")
     creator = relationship("User", foreign_keys=[created_by], backref="created_tasks")
     assignee = relationship("User", foreign_keys=[assigned_to], backref="assigned_tasks")
     source_message = relationship("Message", backref="task")
