@@ -20,6 +20,30 @@ class ChatService {
     return 'http://127.0.0.1:8000$apiPath';
   }
 
+  Future<Map<String, dynamic>> createChat(String name, String description) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'name': name,
+        'description': description,
+        'chat_type': 'group',
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to create chat: ${response.body}');
+    }
+  }
+
   Future<List<dynamic>> getMyChats() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token');

@@ -48,6 +48,61 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _showCreateChatDialog() {
+    final nameController = TextEditingController();
+    final descController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Create New Chat'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Chat Name'),
+              ),
+              TextField(
+                controller: descController,
+                decoration: const InputDecoration(labelText: 'Description'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                final desc = descController.text.trim();
+                if (name.isNotEmpty) {
+                  Navigator.pop(context); // Close dialog immediately
+                  setState(() => _isLoading = true);
+                  try {
+                    await _chatService.createChat(name, desc);
+                    await _loadChats(); // Reload list
+                  } catch (e) {
+                    setState(() => _isLoading = false);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to create chat: $e')),
+                      );
+                    }
+                  }
+                }
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -97,6 +152,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showCreateChatDialog,
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }
